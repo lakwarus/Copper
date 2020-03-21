@@ -98,6 +98,55 @@ function echoGreenBold () {
     
 }
 
+## simplifying the installer
+
+echoGreenBold 'What is your business''s domain name?'
+echo 'Enter your business''s domain name ( E.g. example.com ):'
+read domain_name
+
+## we need to split domain by . and assign to DC1, DC2 and DC3 (assuming 3 levels is the max)
+IFS='.' # space is set as delimiter
+read -ra ADDR <<< "$domain_name"
+x=1;
+for i in "${ADDR[@]}"; do
+    if [ $x -eq 4 ] 
+	then
+	   echo "We only support 3 levels depth in the domain name"
+	   exit 0;
+    fi
+    if [ $x -eq 1 ]
+	then 
+	   DC1="$i"
+    fi
+    if [ $x -eq 2 ]
+        then
+           DC2="$i"
+    fi
+    if [ $x -eq 3 ]
+        then
+           DC3="$i"
+    fi
+    let x=x+1
+done
+
+echoGreenBold 'Setting up admin account'
+echo "Enter username for admin account ( E.g. enter admin for admin@$domain_name ):"
+read admin_username
+echo 'Enter password for admin account:'
+read admin_password
+
+# mysql config
+mysql_db="copper"
+mysql_user="root"
+#mysql_db_pwd=`openssl rand -base64 12`
+mysql_db_pwd=c0pperDB
+
+#ldap config
+
+ro="admin"
+ro_pass=`openssl rand -base64 12`
+rspamd_pwd=`openssl rand -base64 12`
+
 echoGreenBold 'Deploying Copper Email Server...'
 
 # Creating the k8s namespace
@@ -106,256 +155,54 @@ echoGreenBold 'Copper namespace created...'
 
 ############## START OF CONFIGURATION #############################
 
-echoGreenBold 'Please Submit your Input data carefully...'
+# move to template based configuration
+# need to test string limit. This might be exceed the string limit
 
-# Ask the user for their name
-# echo Hello, who am I talking to?
-# read varname
-# echo "It's nice to meet you $varname" >> anu.txt
-# echo What is your age?
-# read age
-# echo "Your age: $age" >> anu.txt
-#echo " " > secret.yaml ## inset to file
-echo "apiVersion: v1" > secret.yaml # this will clear all previous content in the file
-echo "kind: Secret" >> secret.yaml
-echo "metadata:" >> secret.yaml
-echo "    name: email-secret" >> secret.yaml
-echo "    namespace: copper" >> secret.yaml
-echo "type: Opaque" >> secret.yaml
-echo "stringData:" >> secret.yaml
-echo "    TELEGRAF_VERSION: 1.8.1-1" >> secret.yaml
-
-#echo Enter mysql server host name: 
-#read mysql_host
-echo "    MYSQL_HOST: mysql" >> secret.yaml
-echo Enter mysql database name: 
-read mysql_db
-echo "    MYSQL_DATABASE: $mysql_db" >> secret.yaml
-#echo Enter mysql database user: 
-#read mysql_user
-echo "    MYSQL_USER: root" >> secret.yaml
-echo Enter mysql database password: 
-read mysql_db_pwd
-echo "    MYSQL_PASSWORD: $mysql_db_pwd" >> secret.yaml
-
-# echo Enter ldap admin username \(without domain\):
-# read CN
-echo "    CN: admin" >> secret.yaml
-
-echo Your domain must contain 3 parts. \(Eg: part1.part2.part3\)
-echo Enter the first part of domain:
-read DC1
-echo "    DC1: $DC1" >> secret.yaml
-echo Enter the second part of domain:
-read DC2
-echo "    DC2: $DC2" >> secret.yaml
-echo Enter the third part of domain:
-read DC3
-echo "    DC3: $DC3" >> secret.yaml
-echo Enter LDAP admin password:
-read DNPASS
-echo "    DNPASS: $DNPASS" >> secret.yaml
-echo Enter LDAP readonly user name:
-read RO
-echo "    RO: $RO" >> secret.yaml
-echo Enter LDAP readonly user password:
-read ROPASS
-echo "    ROPASS: $ROPASS" >> secret.yaml
-
-echo "    PHPLDAPADMIN_LDAP_HOSTS: ldap" >> secret.yaml
-#echo Enter phpldapadmin password:
-#read LDAPADMIN
-echo "    PHPLDAPADMIN_SERVER_ADMIN: admin@$DC1.$DC2.$DC3" >> secret.yaml
-echo "    PHPLDAPADMIN_SERVER_PATH: /phpldapadmin" >> secret.yaml
-#echo "    PHPLDAPADMIN_HTTPS: \"true\"" >> secret.yaml
-echo "    PHPLDAPADMIN_HTTPS: \"false\"" >> secret.yaml
-echo "    PHPLDAPADMIN_HTTPS_CRT_FILENAME: cert.crt" >> secret.yaml
-echo "    PHPLDAPADMIN_HTTPS_KEY_FILENAME: cert.key" >> secret.yaml
-echo "    PHPLDAPADMIN_HTTPS_CA_CRT_FILENAME: ca.crt" >> secret.yaml
-echo "    PHPLDAPADMIN_LDAP_CLIENT_TLS: \"true\"" >> secret.yaml
-echo "    PHPLDAPADMIN_LDAP_CLIENT_TLS_REQCERT: try" >> secret.yaml
-echo "    PHPLDAPADMIN_LDAP_CLIENT_TLS_CRT_FILENAME: cert.crt" >> secret.yaml
-echo "    PHPLDAPADMIN_LDAP_CLIENT_TLS_KEY_FILENAME: cert.key" >> secret.yaml
-echo "    PHPLDAPADMIN_LDAP_CLIENT_TLS_CA_CRT_FILENAME: ca.crt" >> secret.yaml
-
-echo Enter organization name
-read ORG
-echo "    LDAP_ORGANISATION: $ORG" >> secret.yaml
-echo "    ORGNIZATION: $ORG" >> secret.yaml
-
-# echo Enter ldap Domain Ex : copper.opensource.lk:
-# read DOM
-echo "    LDAP_DOMAIN: $DC1.$DC2.$DC3" >> secret.yaml
-
-# echo Enter ldap admin password
-# read ADM
-echo "    LDAP_ADMIN_PASSWORD: $DNPASS" >> secret.yaml
-
-echo "    LDAP_LOG_LEVEL: \"-1\"" >> secret.yaml # to get all debugs.
-#echo "    LDAP_LOG_LEVEL: \"256\"" >> secret.yaml # http://www.openldap.org/doc/admin24/slapdconfig.html
-echo "    LDAP_CONFIG_PASSWORD: $DNPASS" >> secret.yaml
-echo "    LDAP_READONLY_USER: \"true\"" >> secret.yaml
-echo "    LDAP_READONLY_USER_USERNAME: $RO" >> secret.yaml
-echo "    LDAP_READONLY_USER_PASSWORD: $ROPASS" >> secret.yaml
-echo "    LDAP_RFC2307BIS_SCHEMA: \"false\"" >> secret.yaml
-echo "    LDAP_BACKEND: mdb" >> secret.yaml
-echo "    LDAP_TLS: \"true\"" >> secret.yaml
-#echo "    LDAP_TLS: \"false\"" >> secret.yaml
-echo "    LDAP_TLS_CRT_FILENAME: cert.pem" >> secret.yaml
-echo "    LDAP_TLS_KEY_FILENAME: privkey.pem" >> secret.yaml
-echo "    LDAP_TLS_CA_CRT_FILENAME: fullchain.pem" >> secret.yaml
-echo "    LDAP_TLS_ENFORCE: \"false\"" >> secret.yaml
-echo "    LDAP_TLS_CIPHER_SUITE: SECURE256:+SECURE128:-VERS-TLS-ALL:+VERS-TLS1.2:-RSA:-DHE-DSS:-CAMELLIA-128-CBC:-CAMELLIA-256-CBC" >> secret.yaml
-#echo "    LDAP_TLS_VERIFY_CLIENT: try" >> secret.yaml
-echo "    LDAP_TLS_VERIFY_CLIENT: allow" >> secret.yaml
-echo "    LDAP_REPLICATION: \"false\"" >> secret.yaml
-#echo "    LDAP_REPLICATION_CONFIG_SYNCPROV: \"binddn=\"cn=admin,cn=config\" bindmethod=simple credentials=$LDAP_CONFIG_PASSWORD searchbase=\"cn=config\" type=refreshAndPersist retry=\"60 +\" timeout=1 starttls=critical" >> secret.yaml
-echo "    KEEP_EXISTING_CONFIG: \"false\"" >> secret.yaml
-echo "    LDAP_REMOVE_CONFIG_AFTER_SETUP: \"true\"" >> secret.yaml
-echo "    LDAP_SSL_HELPER_PREFIX: ldap" >> secret.yaml
-
-
-
-echo "    OU : Users" >> secret.yaml
-echo "    LDAP_HOST_IP : ldap" >> secret.yaml
-echo "    KEY_PATH : KEYPATH" >> secret.yaml
-
-echo "    EMAIL : admin@$DC1.$DC2.$DC3" >> secret.yaml
-echo "    HOSTNAME : mail.$DC1.$DC2.$DC3" >> secret.yaml
-echo "    FQDN : mail.$DC1.$DC2.$DC3" >> secret.yaml
-echo "    DOMAIN : $DC1.$DC2.$DC3" >> secret.yaml
-
-echo "    REDIS_HOST : REDIS_HOST" >> secret.yaml
-echo "    REDIS_PORT : REDIS_PORT" >> secret.yaml
-echo "    DEBUG : \"true\"" >> secret.yaml
-
-echo Enter password for spam filter \(RspamD\)
-read rspamd_pwd
-echo "    RSPAMD_PASSWORD : $rspamd_pwd" >> secret.yaml
-
+s0="s/<<DOMAIN>>/$domain_name/g;"
+s1="s/<<CN-ADMIN>>/$admin_username/g;"
+s2="s/<<CN-ADMIN>>/$admin_username/g;"
+s3="s/<<CN-ADMIN-PASSWD>>/$admin_password/g;" 
+s4="s/<<DATABASE>>/$mysql_db/g;"
+s5="s/<<MYSQL-USER>>/$mysql_user/g;"
+s6="s/<<MYSQL-PASSWD>>/$mysql_db_pwd/g;"
+s7="s/<<RO>>/$ro/g;"
+s8="s/<<RO-PASSWD>>/$ro_pass/g;"
+s9="s/<<RSPAMD-PASSWD>>/$rspamd_pwd/g;"
+d1="s/<<DC1>>/$DC1/g;"
+d2="s/<<DC2>>/$DC2/g;"
+d3="s/<<DC3>>/$DC3/g;"
 
 # Now Create the configuration secrets
+s="$s0 $s1 $s2 $s3 $s4 $s5 $s6 $s7 $s8 $s9 $d1 $d2 $d3"
+
+sed "$s" templates/secret.yaml.tmpl > secret.yaml
+cat secret.yaml > secret.yaml.tmp
+
+# remove DC3 line if DC3 is empty
+if [ -z $DC3 ] 
+    then
+    sed '/^    DC3:/d' secret.yaml.tmp > secret.yaml
+fi
 
 echoGreenBold 'Configuration going to be created...'
-kubectl create -f secret.yaml 2> /dev/null || true
+#kubectl create -f secret.yaml 2> /dev/null || true
 echoGreenBold 'Secret configuration files Created...'
 
-
 ################ Creating LDAP yaml for LDAP configuration
-echo "version: 1" > ldap.ldif
-echo "" >> ldap.ldif
 
-# Entry: ou=domains,dc=DC1,dc=DC2,dc=DC3
-echo "dn: ou=domains,dc=$DC1,dc=$DC2,dc=$DC3" >> ldap.ldif
-echo "objectclass: organizationalUnit" >> ldap.ldif
-echo "objectclass: top" >> ldap.ldif
-echo "ou: domains" >> ldap.ldif
-echo "" >> ldap.ldif
+if [ -z $DC3 ] 
+    then
+        dc="dc=$DC1,dc=$DC2"
+    else
+        dc="dc=$DC1,dc=$DC2,dc=$DC3"
+fi
 
-# Entry: dc=$DC1.$DC2.$DC3,ou=domains,dc=$DC1,dc=$DC2,dc=$DC3
-echo "dn: dc=$DC1.$DC2.$DC3,ou=domains,dc=$DC1,dc=$DC2,dc=$DC3" >> ldap.ldif
-echo "associateddomain: $DC1.$DC2.$DC3" >> ldap.ldif
-echo "dc: $DC1.$DC2.$DC3" >> ldap.ldif
-echo "objectclass: dNSDomain" >> ldap.ldif
-echo "objectclass: domainRelatedObject" >> ldap.ldif
-echo "objectclass: top" >> ldap.ldif
-echo "" >> ldap.ldif
-## Entry: dc=copper.support.lk,ou=domains,dc=copper,dc=support,dc=lk
-#dn: dc=copper.support.lk,ou=domains,dc=copper,dc=support,dc=lk
-#associateddomain: copper.support.lk
-#dc: copper.support.lk
-#objectclass: dNSDomain
-#objectclass: domainRelatedObject
-#objectclass: top
-
-# Entry: ou=groups,dc=$DC1,dc=$DC2,dc=$DC3
-echo "dn: ou=groups,dc=$DC1,dc=$DC2,dc=$DC3" >> ldap.ldif
-echo "objectclass: organizationalUnit" >> ldap.ldif
-echo "objectclass: top" >> ldap.ldif
-echo "ou: groups" >> ldap.ldif
-echo "" >> ldap.ldif
-
-# Entry: cn=admin,ou=groups,dc=$DC1,dc=$DC2,dc=$DC3
-echo "dn: cn=admins,ou=groups,dc=$DC1,dc=$DC2,dc=$DC3" >> ldap.ldif
-echo "cn: admins" >> ldap.ldif
-echo "gidnumber: 500" >> ldap.ldif
-echo "objectclass: posixGroup" >> ldap.ldif
-echo "objectclass: top" >> ldap.ldif
-echo "" >> ldap.ldif
-
-echo "dn: cn=users,ou=groups,dc=$DC1,dc=$DC2,dc=$DC3" >> ldap.ldif
-echo "cn: users" >> ldap.ldif
-echo "gidnumber: 501" >> ldap.ldif
-echo "objectclass: posixGroup" >> ldap.ldif
-echo "objectclass: top" >> ldap.ldif
-echo "" >> ldap.ldif
-
-# Entry: ou=Users,dc=$DC1,dc=$DC2,dc=$DC3
-echo "dn: ou=Users,dc=$DC1,dc=$DC2,dc=$DC3" >> ldap.ldif
-echo "objectclass: organizationalUnit" >> ldap.ldif
-echo "objectclass: top" >> ldap.ldif
-echo "ou: Users" >> ldap.ldif
-echo "" >> ldap.ldif
-
-# Entry: cn=system,ou=Users,dc=$DC1,dc=$DC2,dc=$DC3
-echo "dn: uid=system,ou=Users,dc=$DC1,dc=$DC2,dc=$DC3" >> ldap.ldif
-echo "cn: system" >> ldap.ldif
-echo "gidnumber: 501" >> ldap.ldif
-echo "givenname: system" >> ldap.ldif
-echo "homedirectory: /home/Users/system" >> ldap.ldif
-echo "loginshell: /bin/sh" >> ldap.ldif
-echo "mail: system@$DC1.$DC2.$DC3" >> ldap.ldif
-echo "objectclass: inetOrgPerson" >> ldap.ldif
-echo "objectclass: posixAccount" >> ldap.ldif
-echo "objectclass: top" >> ldap.ldif
-echo "sn: system" >> ldap.ldif
-echo "uid: system" >> ldap.ldif
-echo "uidnumber: 1000" >> ldap.ldif
-echo "userpassword: {SSHA}79+ggcj1RrXEitcvjVBDgqF6NdJf09Y3" >> ldap.ldif
-echo "#userpassword in plain: system" >> ldap.ldif
-echo "" >> ldap.ldif
-
-# Entry: cn=copper,ou=Users,dc=$DC1,dc=$DC2,dc=$DC3
-echo "dn: uid=copper,ou=Users,dc=$DC1,dc=$DC2,dc=$DC3" >> ldap.ldif
-echo "cn: copper" >> ldap.ldif
-echo "gidnumber: 501" >> ldap.ldif
-echo "givenname: copper" >> ldap.ldif
-echo "homedirectory: /home/Users/copper" >> ldap.ldif
-echo "loginshell: /bin/sh" >> ldap.ldif
-echo "mail: copper@$DC1.$DC2.$DC3" >> ldap.ldif
-echo "objectclass: inetOrgPerson" >> ldap.ldif
-echo "objectclass: posixAccount" >> ldap.ldif
-echo "objectclass: top" >> ldap.ldif
-echo "sn: copper" >> ldap.ldif
-echo "uid: copper" >> ldap.ldif
-echo "uidnumber: 1001" >> ldap.ldif
-echo "userpassword: {SSHA}79+ggcj1RrXEitcvjVBDgqF6NdJf09Y3" >> ldap.ldif
-echo "#userpassword in plain: copper" >> ldap.ldif
-echo "" >> ldap.ldif
-
-# Entry: cn=test,ou=Users,dc=$DC1,dc=$DC2,dc=$DC3
-echo "dn: uid=test,ou=Users,dc=$DC1,dc=$DC2,dc=$DC3" >> ldap.ldif
-echo "cn: test" >> ldap.ldif
-echo "gidnumber: 501" >> ldap.ldif
-echo "givenname: test" >> ldap.ldif
-echo "homedirectory: /home/Users/test" >> ldap.ldif
-echo "loginshell: /bin/sh" >> ldap.ldif
-echo "mail: test@$DC1.$DC2.$DC3" >> ldap.ldif
-echo "objectclass: inetOrgPerson" >> ldap.ldif
-echo "objectclass: posixAccount" >> ldap.ldif
-echo "objectclass: top" >> ldap.ldif
-echo "sn: test" >> ldap.ldif
-echo "uid: test" >> ldap.ldif
-echo "uidnumber: 1002" >> ldap.ldif
-echo "userpassword: {SSHA}79+ggcj1RrXEitcvjVBDgqF6NdJf09Y3" >> ldap.ldif
-echo "#userpassword in plain: test" >> ldap.ldif
-echo "" >> ldap.ldif
+sed "s/<<DC>>/$dc/g; s/<<DOMAIN>>/$domain_name/g;" templates/ldap.ldif.tmpl > ldap.ldif
 
 echoGreenBold 'ldap.ldif file was Created...'
 
 
-
-
+exit
 ######### END OF CONFIGURATION #############################################
 
 # checking cert file list
@@ -432,10 +279,10 @@ echoGreenBold 'email service created...'
 #Building docker image
 
 # Create the persistent volume and persistent volume claim for database
-kubectl create -f persistent/mysql-pv.yaml  2> /dev/null || true
+#kubectl create -f persistent/mysql-pv.yaml  2> /dev/null || true
 echoGreenBold 'Persistent Volume created...'
 # Create mysql deployment
-kubectl create -f persistent/mysql-deployment.yaml  2> /dev/null || true
+#kubectl create -f persistent/mysql-deployment.yaml  2> /dev/null || true
 echoGreenBold 'mysql deployment completed...'
 
 
@@ -443,34 +290,34 @@ echoGreenBold 'mysql deployment completed...'
 
 #Prometheus implementation
 # Creating a roll has the access for clusters and bind the cluster roll.
-#kubectl create -f prometheus-alert/clusterRole.yaml 2> /dev/null || true
+##kubectl create -f prometheus-alert/clusterRole.yaml 2> /dev/null || true
 #echoGreenBold 'Role creation and Role binding...'
 
 # Create the config map to keep configuration data of prometheus
-#kubectl create -f prometheus-alert/config-map.yaml -n copper 2> /dev/null || true
+##kubectl create -f prometheus-alert/config-map.yaml -n copper 2> /dev/null || true
 #echoGreenBold 'Prometheus configuration created...'
 
 # Deploy prometheus pods 
-#kubectl create  -f prometheus-alert/prometheus-deployment.yaml --namespace=copper 2> /dev/null || true
+##kubectl create  -f prometheus-alert/prometheus-deployment.yaml --namespace=copper 2> /dev/null || true
 
 # Create the service to access prometheus 
-#kubectl create -f prometheus-alert/prometheus-service.yaml --namespace=copper 2> /dev/null || true
+##kubectl create -f prometheus-alert/prometheus-service.yaml --namespace=copper 2> /dev/null || true
 #echoGreenBold 'Prometheus service created...'
 # Alert manager implementation
 # Creating the configuration 
-#kubectl create -f prometheus-alert/AlertManagerConfigmap.yaml 2> /dev/null || true
+##kubectl create -f prometheus-alert/AlertManagerConfigmap.yaml 2> /dev/null || true
 #
-#kubectl create -f prometheus-alert/AlertTemplateConfigMap.yaml 2> /dev/null || true
+##kubectl create -f prometheus-alert/AlertTemplateConfigMap.yaml 2> /dev/null || true
 #echoGreenBold 'Alert Manager congiguration created..'
 #
-#kubectl create -f prometheus-alert/Deployment.yaml 2> /dev/null || true
+##kubectl create -f prometheus-alert/Deployment.yaml 2> /dev/null || true
 #
-#kubectl create -f prometheus-alert/Service.yaml 2> /dev/null || true
+##kubectl create -f prometheus-alert/Service.yaml 2> /dev/null || true
 #echoGreenBold 'Alert Manager created...'
 
 # >>>>>> end of prometheus stack deployment
 
-kubectl create -f groupware/groupoffice/groupoffice.yaml 2> /dev/null || true
+#kubectl create -f groupware/groupoffice/groupoffice.yaml 2> /dev/null || true
 echoGreenBold 'Groupoffice created...'
 
 # wait 1 seconds 
@@ -494,16 +341,16 @@ echoGreenBold 'ldap-pw created...'
 # >>>>>>>>>>>> Ingress installation start  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 echoGreenBold 'Ingress creation started ....'
 # install the backend
-kubectl create -f Ingress/default-backend.yaml
+#kubectl create -f Ingress/default-backend.yaml
 echoGreenBold 'Default Back End created ....'
 
 
 # creating rules for ingress
-kubectl create -f Ingress/ingress.yaml
+#kubectl create -f Ingress/ingress.yaml
 echoGreenBold 'ingress rules created ......'
 
 # install the ingress controller
-kubectl create -f Ingress/nginx-controller.yaml
+#kubectl create -f Ingress/nginx-controller.yaml
 echoGreenBold 'nginx-controller created ....'
 
 
