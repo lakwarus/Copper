@@ -172,10 +172,16 @@ d1="s/<<DC1>>/$DC1/g;"
 d2="s/<<DC2>>/$DC2/g;"
 d3="s/<<DC3>>/$DC3/g;"
 
-# Now Create the configuration secrets
-s="$s0 $s1 $s2 $s3 $s4 $s5 $s6 $s7 $s8 $s9 $d1 $d2 $d3"
 
+
+# Now Create the configuration secrets
+s="$s0 $s1 $s2 $s3 $s4 $s5"
 sed "$s" templates/secret.yaml.tmpl > secret.yaml
+cat secret.yaml > secret.yaml.tmp
+
+# split sed to 2 commands to avoid exceed string limit
+s="$s6 $s7 $s8 $s9 $d1 $d2 $d3"
+sed "$s" secret.yaml.tmp > secret.yaml
 cat secret.yaml > secret.yaml.tmp
 
 # remove DC3 line if DC3 is empty
