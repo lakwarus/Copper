@@ -1,0 +1,86 @@
+version: 1
+
+dn: ou=domains,<<DC>>
+objectclass: organizationalUnit
+objectclass: top
+ou: domains
+
+dn: dc=test.gagana.me,ou=domains,<<DC>>
+associateddomain: <<DOMAIN>>
+associateddomain: test.gagana.me
+dc: <<DOMAIN>>
+dc: test.gagana.me
+objectclass: dNSDomain
+objectclass: domainRelatedObject
+objectclass: top
+
+dn: ou=groups,<<DC>>
+objectclass: organizationalUnit
+objectclass: top
+ou: groups
+
+dn: cn=admins,ou=groups,<<DC>>
+cn: admins
+gidnumber: 500
+objectclass: posixGroup
+objectclass: top
+
+dn: cn=users,ou=groups,<<DC>>
+cn: users
+gidnumber: 501
+objectclass: posixGroup
+objectclass: top
+
+dn: ou=Users,<<DC>>
+objectclass: organizationalUnit
+objectclass: top
+ou: Users
+
+dn: uid=system,<<DC>>
+cn: system
+gidnumber: 501
+givenname: system
+homedirectory: /home/Users/system
+loginshell: /bin/sh
+mail: system@<<DOMAIN>>
+objectclass: inetOrgPerson
+objectclass: posixAccount
+objectclass: top
+sn: system
+uid: system
+uidnumber: 1000
+userpassword: {SSHA}79+ggcj1RrXEitcvjVBDgqF6NdJf09Y3
+#userpassword in plain: system
+
+dn: uid=copper,ou=Users,<<DC>>
+cn: copper
+gidnumber: 501
+givenname: copper
+homedirectory: /home/Users/copper
+loginshell: /bin/sh
+mail: copper@<<DOMAIN>>
+objectclass: inetOrgPerson
+objectclass: posixAccount
+objectclass: top
+sn: copper
+uid: copper
+uidnumber: 1001
+userpassword: {SSHA}79+ggcj1RrXEitcvjVBDgqF6NdJf09Y3
+#userpassword in plain: copper
+
+dn: uid=test,ou=Users,<<DC>>
+cn: test
+gidnumber: 501
+givenname: test
+homedirectory: /home/Users/test
+loginshell: /bin/sh
+mail: test@<<DOMAIN>>
+objectclass: inetOrgPerson
+objectclass: posixAccount
+objectclass: top
+sn: test
+uid: test
+uidnumber: 1002
+userpassword: {SSHA}79+ggcj1RrXEitcvjVBDgqF6NdJf09Y3
+#userpassword in plain: test
+
