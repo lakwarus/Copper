@@ -100,6 +100,52 @@ function echoGreenBold () {
 
 ## simplifying the installer
 
+# -------------------------------------
+read -r -p "You are going to install copper Email. You should have coppied your certificate and key files to tls folder. Are you ready? [y/N] " response
+case "$response" in
+    [yY][eE][sS]|[yY])
+
+# checking cert file list
+# - cert.pem
+# - fullchain.pem
+# - privkey.key
+# - dhparam.pem
+
+# checking the cert.pem files exists
+file="../tls/cert.pem"
+if [ ! -f "$file" ]
+then
+    echoRedBold "$0: cert.pem file '${file}' not found in tls directory. !"
+    #exit 3 
+fi
+
+# checking the privkey.key files exists
+file="../tls/privkey.pem"
+if [ ! -f "$file" ]
+then
+    echoRedBold "$0: privkey.pem file '${file}' not found in tls directory. !"
+    #exit 3 
+fi
+
+# checking the dhparam.pem files exists
+file="../tls/dhparam.pem"
+if [ ! -f "$file" ]
+then
+    echoRedBold "$0: dhparam.pem file '${file}' not found in tls directory. !"
+    #exit 3 
+fi
+
+# checking the fullchain.pem files exists
+#file="../tls/fullchain.pem"
+#if [ ! -f "$file" ]
+#then
+#    echoRedBold "$0: fullchain.pem file '${file}' not found in tls directory. !"
+#    exit 3 
+#fi
+
+echoGreenBold 'Certificate files are avaialbe in the tls folder'
+#-----------
+
 echoGreenBold 'What is your business''s domain name?'
 echo 'Enter your business''s domain name ( E.g. example.com ):'
 read domain_name
@@ -149,10 +195,6 @@ rspamd_pwd=`openssl rand -base64 12`
 
 echoGreenBold 'Deploying Copper Email Server...'
 
-# Creating the k8s namespace
-kubectl create namespace copper 2> /dev/null || true
-echoGreenBold 'Copper namespace created...'
-
 ############## START OF CONFIGURATION #############################
 
 # move to template based configuration
@@ -172,8 +214,6 @@ d1="s/<<DC1>>/$DC1/g;"
 d2="s/<<DC2>>/$DC2/g;"
 d3="s/<<DC3>>/$DC3/g;"
 
-
-
 # Now Create the configuration secrets
 s="$s0 $s1 $s2 $s3 $s4 $s5"
 sed "$s" templates/secret.yaml.tmpl > secret.yaml
@@ -190,9 +230,7 @@ if [ -z $DC3 ]
     sed '/^    DC3:/d' secret.yaml.tmp > secret.yaml
 fi
 
-echoGreenBold 'Configuration going to be created...'
-#kubectl create -f secret.yaml 2> /dev/null || true
-echoGreenBold 'Secret configuration files Created...'
+echoGreenBold 'Configuration going to be create...'
 
 ################ Creating LDAP yaml for LDAP configuration
 
@@ -207,69 +245,24 @@ sed "s/<<DC>>/$dc/g; s/<<DOMAIN>>/$domain_name/g;" templates/ldap.ldif.tmpl > ld
 
 echoGreenBold 'ldap.ldif file was Created...'
 
-
 exit
 ######### END OF CONFIGURATION #############################################
-
-# checking cert file list
-# - cert.pem
-# - fullchain.pem
-# - privkey.key
-# - dhparam.pem
-
-# checking the cert.pem files exists
-file="../tls/cert.pem"
-if [ ! -f "$file" ]
-then
-    echoRedBold "$0: cert.pem file '${file}' not found in tls directory. !"
-    #exit 3 
-fi
-
-# checking the privkey.key files exists
-file="../tls/privkey.pem"
-if [ ! -f "$file" ]
-then
-    echoRedBold "$0: privkey.pem file '${file}' not found in tls directory. !"
-    #exit 3 
-fi
-
-# checking the dhparam.pem files exists
-file="../tls/dhparam.pem"
-if [ ! -f "$file" ]
-then
-    echoRedBold "$0: dhparam.pem file '${file}' not found in tls directory. !"
-    #exit 3 
-fi
-
-# checking the fullchain.pem files exists
-#file="../tls/fullchain.pem"
-#if [ ! -f "$file" ]
-#then
-#    echoRedBold "$0: fullchain.pem file '${file}' not found in tls directory. !"
-#    exit 3 
-#fi
-
-echoGreenBold 'Certificate files are avaialbe in the tls folder'
-
-
-# -------------------------------------
-
-
-read -r -p "You are going to install copper Email. You should have coppied your certificate and key files to tls folder. Are you ready? [y/N] " response
-case "$response" in
-    [yY][eE][sS]|[yY])
-
-
 # starting kubernetes deployment
+# Creating the k8s namespace
+kubectl create namespace copper >> installer.log
+echoGreenBold 'Copper namespace created...'
+
+kubectl create -f secret.yaml >> installer.log
+echoGreenBold 'Copper secret created...'
 
 # changing to parent directory
 cd ..
 
 # Creating ldap server
-kubectl create -f openldap/openldap.yaml 2> /dev/null || true
+kubectl create -f openldap/openldap.yaml >> installer.log
 echoGreenBold 'openldap service created...'
 # Create the phpldapadmin service  
-kubectl create -f phpldapadmin/phpldapadmin.yaml 2> /dev/null || true
+kubectl create -f phpldapadmin/phpldapadmin.yaml >> installer.log
 echoGreenBold 'phpldapadmin service Created...'
 # creating emailserver docker image
 #cd emailserver
@@ -280,16 +273,16 @@ echoGreenBold 'phpldapadmin service Created...'
 #cd ..
 
 # Create the emailserver service from kubernetes using docker image we have created now.
-kubectl create -f emailserver/email.yaml 2> /dev/null || true
+kubectl create -f emailserver/email.yaml >> installer.log
 echoGreenBold 'email service created...'
 #Building docker image
 
 # Create the persistent volume and persistent volume claim for database
-#kubectl create -f persistent/mysql-pv.yaml  2> /dev/null || true
-echoGreenBold 'Persistent Volume created...'
+#kubectl create -f persistent/mysql-pv.yaml  >> installer.log
+#echoGreenBold 'Persistent Volume created...'
 # Create mysql deployment
-#kubectl create -f persistent/mysql-deployment.yaml  2> /dev/null || true
-echoGreenBold 'mysql deployment completed...'
+#kubectl create -f persistent/mysql-deployment.yaml >> installer.log
+#echoGreenBold 'mysql deployment completed...'
 
 
 # >>>>>> Start of prometheus stack deployment (bellow all commands should be activated)
@@ -323,11 +316,11 @@ echoGreenBold 'mysql deployment completed...'
 
 # >>>>>> end of prometheus stack deployment
 
-#kubectl create -f groupware/groupoffice/groupoffice.yaml 2> /dev/null || true
-echoGreenBold 'Groupoffice created...'
+#kubectl create -f groupware/groupoffice/groupoffice.yaml >> installer.log
+#echoGreenBold 'Groupoffice created...'
 
 # wait 1 seconds 
-sleep 1s
+#sleep 1s
 
 # Creating the namespace
 
@@ -339,25 +332,23 @@ sleep 1s
 #echoGreenBold 'ldap-pw image created...'
 
 # Creating the web server
-kubectl create -f Apps/ldap-pw/ldap-pw.yaml 2> /dev/null || true
+kubectl create -f Apps/ldap-pw/ldap-pw.yaml >> installer.log
 echoGreenBold 'ldap-pw created...'
 
-
-
 # >>>>>>>>>>>> Ingress installation start  >>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-echoGreenBold 'Ingress creation started ....'
+#echoGreenBold 'Ingress creation started ....'
 # install the backend
 #kubectl create -f Ingress/default-backend.yaml
-echoGreenBold 'Default Back End created ....'
+#echoGreenBold 'Default Back End created ....'
 
 
 # creating rules for ingress
 #kubectl create -f Ingress/ingress.yaml
-echoGreenBold 'ingress rules created ......'
+#echoGreenBold 'ingress rules created ......'
 
 # install the ingress controller
 #kubectl create -f Ingress/nginx-controller.yaml
-echoGreenBold 'nginx-controller created ....'
+#echoGreenBold 'nginx-controller created ....'
 
 
 
