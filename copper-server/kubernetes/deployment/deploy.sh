@@ -185,10 +185,9 @@ read admin_password
 mysql_db="copper"
 mysql_user="root"
 #mysql_db_pwd=`openssl rand -base64 12`
-mysql_db_pwd=c0pperDB
+mysql_db_pwd="c0pperDB"
 
 #ldap config
-
 ro="admin"
 ro_pass=`openssl rand -base64 12`
 rspamd_pwd=`openssl rand -base64 12`
@@ -217,11 +216,13 @@ d3="s/<<DC3>>/$DC3/g;"
 # Now Create the configuration secrets
 s="$s0 $s1 $s2 $s3 $s4 $s5"
 sed "$s" templates/secret.yaml.tmpl > secret.yaml
+sleep 1
 cat secret.yaml > secret.yaml.tmp
 
 # split sed to 2 commands to avoid exceed string limit
 s="$s6 $s7 $s8 $s9 $d1 $d2 $d3"
 sed "$s" secret.yaml.tmp > secret.yaml
+sleep 1
 cat secret.yaml > secret.yaml.tmp
 
 # remove DC3 line if DC3 is empty
@@ -245,11 +246,10 @@ sed "s/<<DC>>/$dc/g; s/<<DOMAIN>>/$domain_name/g;" templates/ldap.ldif.tmpl > ld
 
 echoGreenBold 'ldap.ldif file was Created...'
 
-exit
 ######### END OF CONFIGURATION #############################################
 # starting kubernetes deployment
 # Creating the k8s namespace
-kubectl create namespace copper >> installer.log
+kubectl create namespace copper 2> /dev/null || true
 echoGreenBold 'Copper namespace created...'
 
 kubectl create -f secret.yaml >> installer.log
